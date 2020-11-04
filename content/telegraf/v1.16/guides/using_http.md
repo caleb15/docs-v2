@@ -8,7 +8,7 @@ menu:
     parent: Guides
 ---
 
-This example walks through using the Telegraf HTTP input plugin to collect live metrics on Citi Bike stations in New York City. Live station data is available in JSON format from [NYC OpenData](https://data.cityofnewyork.us/NYC-BigApps/Citi-Bike-Live-Station-Feed-JSON-/p94q-8hxh).
+This example walks through using the Telegraf HTTP input plugin to collect metrics on Citi Bike stations in New York City. Station data is available in JSON format [here](https://gist.githubusercontent.com/caleb15/dddc22420e7ea27a8a54258687eb578f/raw/070d1362c7186b6b290d735107d0a6cd6020733e/citibike.json). If you want real live data you can check out the link [here](https://gbfs.citibikenyc.com/gbfs/en/station_status.json) but the guide may be out of date compared to the live data.
 
 For the following example to work, configure [`influxdb` output plugin](/telegraf/v1.15/plugins/#influxdb). This plugin is what allows Telegraf to write the metrics to your InfluxDB.
 
@@ -19,7 +19,7 @@ To retrieve data from the Citi Bike URL endpoint, enable the `inputs.http` input
 Specify the following options:
 
 ### `urls`
-One or more URLs to read metrics from. For this example,  use `https://feeds.citibikenyc.com/stations/stations.json`.
+One or more URLs to read metrics from. For this example,  use `https://gist.githubusercontent.com/caleb15/dddc22420e7ea27a8a54258687eb578f/raw/070d1362c7186b6b290d735107d0a6cd6020733e/citibike.json`.
 
 ### `data_format`
 The format of the data in the HTTP endpoints that Telegraf will ingest. For this example, use JSON.
@@ -56,7 +56,7 @@ The timezone We'll set this to the Unix TZ value where our bike data takes place
   ```toml
   [[inputs.http]]
   #URL for NYC's Citi Bike station data in JSON format
-  urls = ["https://feeds.citibikenyc.com/stations/stations.json"]
+  urls = ["https://gist.githubusercontent.com/caleb15/dddc22420e7ea27a8a54258687eb578f/raw/070d1362c7186b6b290d735107d0a6cd6020733e/citibike.json"]
 
   #Overwrite measurement name from default `http` to `citibikenyc`
   name_override = "citibikenyc"
@@ -67,25 +67,19 @@ The timezone We'll set this to the Unix TZ value where our bike data takes place
   #Data from HTTP in JSON format
   data_format = "json"
 
-  #Parse `stationBeanList` array only
-  json_query = "stationBeanList"
+  #Parse `data.stations` array only
+  json_query = "data.stations"
 
   #Set station metadata as tags
-  tag_keys = ["id", "stationName", "city", "postalCode"]
-
-  #Do not include station landmark data as fields
-  fielddrop = ["landMark"]
-
-  #JSON values to set as string fields
-  json_string_fields = ["statusValue", "stAddress1", "stAddress2", "location", "landMark"]
+  tag_keys = ["station_id"]
 
   #Latest station information reported at `lastCommunicationTime`
-  json_time_key = "lastCommunicationTime"
+  json_time_key = "last_reported"
 
-  #Time is reported in Golang "reference time" format
-  json_time_format = "2006-01-02 03:04:05 PM"
-
-  #Time is reported in Eastern Standard Time (EST)
+  #Time is reported in unix seconds
+  json_time_format = "unix"
+  
+  #Data is from New York so it is in Eastern Standard Time (EST)
   json_timezone = "America/New_York"
   ```
 
@@ -105,10 +99,10 @@ This command should return line protocol that looks similar to the following:
 
 
 ```
-citibikenyc,id=3443,stationName=W\ 52\ St\ &\ 6\ Ave statusKey=1,location="",totalDocks=41,availableDocks=32,latitude=40.76132983124814,longitude=-73.97982001304626,availableBikes=8,stAddress2="",stAddress1="W 52 St & 6 Ave",statusValue="In Service" 1581533519000000000
-citibikenyc,id=367,stationName=E\ 53\ St\ &\ Lexington\ Ave availableBikes=8,stAddress1="E 53 St & Lexington Ave",longitude=-73.97069431,latitude=40.75828065,stAddress2="",statusKey=1,location="",statusValue="In Service",totalDocks=34,availableDocks=24 1581533492000000000
-citibikenyc,id=359,stationName=E\ 47\ St\ &\ Park\ Ave totalDocks=64,availableBikes=15,statusValue="In Service",location="",latitude=40.75510267,availableDocks=49,stAddress1="E 47 St & Park Ave",longitude=-73.97498696,statusKey=1,stAddress2="" 1581533535000000000
-citibikenyc,id=304,stationName=Broadway\ &\ Battery\ Pl statusValue="In Service",availableDocks=11,stAddress1="Broadway & Battery Pl",statusKey=1,stAddress2="",location="",totalDocks=33,latitude=40.70463334,longitude=-74.01361706,availableBikes=22 1581533499000000000
+citibikenyc,station_id=72 is_installed=1,is_renting=1,is_returning=1,num_bikes_available=10,num_bikes_disabled=1,num_docks_available=44,num_docks_disabled=0,num_ebikes_available=2 1604455485000000000
+citibikenyc,station_id=79 is_installed=1,is_renting=1,is_returning=1,num_bikes_available=25,num_bikes_disabled=2,num_docks_available=6,num_docks_disabled=0,num_ebikes_available=0 1604455168000000000
+citibikenyc,station_id=82 is_installed=1,is_renting=1,is_returning=1,num_bikes_available=17,num_bikes_disabled=1,num_docks_available=9,num_docks_disabled=0,num_ebikes_available=0 1604456065000000000
+citibikenyc,station_id=83 is_installed=1,is_renting=1,is_returning=1,num_bikes_available=43,num_bikes_disabled=0,num_docks_available=19,num_docks_disabled=0,num_ebikes_available=1 1604454968000000000
 ```
 
 Now, you can explore and query the Citi Bike data in InfluxDB. The example below is an InfluxQL query and visualization showing the number of available bikes over the past 15 minutes at the Broadway and West 29th Street station.
